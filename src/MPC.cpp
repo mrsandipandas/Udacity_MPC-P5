@@ -7,7 +7,7 @@ using CppAD::AD;
 
 // Set the timestep length and duration
 // Predict N steps with dt duration for each step
-size_t N = 20;
+size_t N = 15;
 double dt = 0.1;
 
 // This value assumes the model presented in the classroom is used.
@@ -53,7 +53,7 @@ class FG_eval {
     const int delta_dt_weight = 25000;
     const int a_dt_weight = 5000;
     
-    // Cost based on the reference state
+    // Cost based on the reference state - cte, orientation, velocity
     for (size_t i = 0; i < N; i++) {
       fg[0] += cte_weight * CppAD::pow(vars[cte_start + i], 2);
       fg[0] += epsi_weight * CppAD::pow(vars[epsi_start + i], 2);
@@ -71,7 +71,18 @@ class FG_eval {
       fg[0] += delta_dt_weight * pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
       fg[0] += a_dt_weight * pow(vars[a_start + i + 1] - vars[a_start + i], 2);
     }
-   
+  
+    //
+    // Setup Constraints
+    //
+    // NOTE: In this section the model constraints are setup
+
+    // Initial constraints
+    //
+    // We add 1 to each of the starting indices due to cost being located at
+    // index 0 of `fg`.
+    // This bumps up the position of all the other values.
+    
     fg[1 + x_start] = vars[x_start];
     fg[1 + y_start] = vars[y_start];
     fg[1 + psi_start] = vars[psi_start];
@@ -104,6 +115,17 @@ class FG_eval {
       AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * pow(x0, 2) + coeffs[3] * pow(x0, 3);
       AD<double> psi_des0 = CppAD::atan(coeffs[1] + 2*coeffs[2]*x0 + 3*coeffs[3]*pow(x0,2));
       
+      // Here's `x` to started
+      // The idea here is to constraint this value to be 0.
+      //
+      // Recall the equations for the model:
+      // x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+      // y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+      // psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+      // v_[t+1] = v[t] + a[t] * dt
+      // cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+      // epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
+      
       // Setting up the rest of the model constraints
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
@@ -131,7 +153,7 @@ std::vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   const double cte = state[4];
   const double epsi = state[5];
   
-  // Setting the number of model variables (includes both states and inputs).
+  // Setting the number of model variables (includes both states and inputs)
   // N * state vector size + (N - 1) * 2 actuators (For steering & acceleration)
   size_t n_vars = N * 6 + (N - 1) * 2;
   // Setting the number of constraints
@@ -152,7 +174,7 @@ std::vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_upperbound[i] = 1.0e19;
   }
   
-  // The upper and lower limits of delta are set to -25 and 25 degrees (values in radians).
+  // The upper and lower limits of delta are set to -25 and 25 degrees (values in radians)
   for (size_t i = delta_start; i < a_start; i++) {
     vars_lowerbound[i] = -0.436332;
     vars_upperbound[i] = 0.436332;
@@ -225,9 +247,20 @@ std::vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   std::cout << "Cost " << cost << std::endl;
   
   // Return the first actuator values, along with predicted x and y values to plot in the simulator.
+  // Only the first actuation values are used in the controller
   std::vector<double> optimizedSolver;
-  optimizedSolver.push_back(solution.x[delta_start]);
-  optimizedSolver.push_back(solution.x[a_start]);
+  
+  size_t M = std::ceil(N/3);
+  double delta_sum = 0.0;
+  double a_sum = 0.0;
+  for (size_t i = 0; i < M; ++i) {
+    delta_sum += solution.x[delta_start + i];
+    a_sum += solution.x[a_start + i];
+  }
+  optimizedSolver.push_back(delta_sum/M);
+  optimizedSolver.push_back(a_sum/M);
+  optimizedSolver.push_back(solution.x[cte_start]);
+  optimizedSolver.push_back(solution.x[psi_start]);
   for (size_t i = 0; i < N; ++i) {
     optimizedSolver.push_back(solution.x[x_start + i]);
     optimizedSolver.push_back(solution.x[y_start + i]);

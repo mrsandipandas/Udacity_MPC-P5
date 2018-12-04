@@ -8,6 +8,9 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "MPC.h"
+/*#include "matplotlibcpp.h"*/
+
+//namespace plt = matplotlibcpp;
 using namespace std;
 // for convenience
 using json = nlohmann::json;
@@ -16,6 +19,14 @@ using json = nlohmann::json;
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
+
+vector<double> mpc_psi_vals;
+vector<double> mpc_v_vals;
+vector<double> mpc_cte_vals;
+vector<double> mpc_epsi_vals;
+vector<double> mpc_delta_vals;
+vector<double> mpc_a_vals;
+//int mpc_counter = 0;
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -77,7 +88,7 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    //cout << sdata << endl;
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -142,11 +153,20 @@ int main() {
           Eigen::VectorXd state(6);
           state << x_delay, y_delay, psi_delay, v_delay, cte_delay, epsi_delay;
 
+          //Display the MPC predicted trajectory 
+          vector<double> mpc_x_vals;
+          vector<double> mpc_y_vals;
+          
           // Find the MPC solution.
           auto vars = mpc.Solve(state, coeffs);
           
           double steer_value = vars[0]/deg2rad(25);
           double throttle_value = vars[1];
+          
+          mpc_delta_vals.push_back(steer_value);
+          mpc_a_vals.push_back(throttle_value);
+          mpc_cte_vals.push_back(vars[2]);
+          mpc_psi_vals.push_back(vars[3]);
             
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -154,20 +174,16 @@ int main() {
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle_value;
 
-          //Display the MPC predicted trajectory 
-          vector<double> mpc_x_vals;
-          vector<double> mpc_y_vals;
-
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
+          // Adding (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
-          for ( size_t i = 2; i < vars.size(); i++ ) {
+          for ( size_t i = 4; i < vars.size(); i++ ) {
             if ( i % 2 == 0 ) {
               mpc_x_vals.push_back( vars[i] );
             } else {
               mpc_y_vals.push_back( vars[i] );
             }
           }
-          
+                
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
@@ -188,9 +204,28 @@ int main() {
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
+          /*
+          if (mpc_counter == 400) {  
+
+            plt::subplot(3, 1, 1);
+            plt::title("CTE");
+            plt::plot(mpc_cte_vals);
+
+            plt::subplot(3, 1, 2);
+            plt::title("Throttle");
+            plt::plot(mpc_a_vals);
+
+            plt::subplot(3, 1, 3);
+            plt::title("Steering");
+            plt::plot(mpc_delta_vals);
+
+            plt::show();
+         }
+         */
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
+          //mpc_counter ++;
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
@@ -200,7 +235,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(10));
+          this_thread::sleep_for(chrono::milliseconds(100));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
