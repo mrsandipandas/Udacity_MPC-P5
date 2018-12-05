@@ -1,5 +1,7 @@
 .vscode
 build
 tags
+CppAD-20160000.1
+Ipopt-3.12.7
 .editorconfig
 .DS_Store
