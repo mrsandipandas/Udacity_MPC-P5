@@ -52,11 +52,11 @@ Self-Driving Car Engineer Nanodegree Program
 
 ## Basic Build Instructions
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./mpc`
-5. If matplotlibcpp needs to be build as well use: 
+* Clone this repo.
+* Make a build directory: `mkdir build && cd build`
+* Compile: `cmake .. && make`
+* Run it: `./mpc`
+* If matplotlibcpp needs to be build as well use: 
   * `set(sources src/matplotlibcpp.h)`
   * `target_link_libraries(python2.7)` 
 
@@ -200,7 +200,7 @@ auto coeffs = polyfit(ptsx_transformed, ptsy_transformed, 3);
 
 ### Model Predictive Control with Latency   
 
-Note we have to take the 100ms latency into account, to compute the kinematic model and do the actuation before feeding it into the predictor. Also, I added a smoothing strategy to make the controller more oscillations agnostic. I calcutaed the average of the predicted steering angles and accelerations based on the cte over a third of the prediction steps. This in truns does not make abrupt decision changes in the controller. Rather the controller thakes decision based on a little more estimated horizon.
+Note we have to take the 100ms latency into account, to compute the kinematic model and do the actuation before feeding it into the predictor. Also, I added a smoothing strategy to make the controller more oscillations agnostic. I calculated the average of the predicted steering angles and accelerations based on the cte over a third of the prediction steps. This helps in minimizing the abrupt decision changes in the controller. Rather the controller takes decision based on a little more estimated horizon.
 
 ```
   size_t M = std::ceil(N/3);
