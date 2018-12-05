@@ -226,7 +226,7 @@ Before applying this averaging, I got a jerky controller:
 
 However, after applying the averaging, I achieved a fairly smoother controller:
 
-![Smoother MPC controller with relatively oscillations][image1]      
+![Smoother MPC controller with relatively oscillations][image2]      
 
 In the later case, the ride will be much more pleasant than the former.
 
